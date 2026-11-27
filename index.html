@@ -337,8 +337,11 @@
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     (() => {
+      const supabaseUrl = "https://lmjtsrbqqxxserlnrngi.supabase.co";
+      const supabasePublicKey = "sb_publishable_rBxlH-lrTlorqJgww64rTQ_v0-Chgkj";
       const introScreen = document.querySelector("#intro-screen");
       const introCopy = document.querySelector("#intro-copy");
       const videoScreen = document.querySelector("#video-screen");
@@ -354,6 +357,12 @@
       const messageStatus = document.querySelector("#message-status");
       const messageSubmit = document.querySelector("#message-submit");
       const messagesById = new Map();
+      const isLocalPrototype = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+      const hasSupabaseConfig = Boolean(supabaseUrl && supabasePublicKey);
+      const hasPartialSupabaseConfig = Boolean(supabaseUrl || supabasePublicKey) && !hasSupabaseConfig;
+      const supabaseClient = hasSupabaseConfig && !isLocalPrototype && window.supabase
+        ? window.supabase.createClient(supabaseUrl, supabasePublicKey)
+        : null;
 
       const steps = [
         { text: "keep clicking" },
@@ -404,7 +413,7 @@
         }
 
         const sortedMessages = [...messagesById.values()]
-          .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+          .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
         messageList.replaceChildren();
 
         for (const message of sortedMessages) {
@@ -420,49 +429,97 @@
         if (wasAtBottom) messageList.scrollTop = messageList.scrollHeight;
       }
 
+      function fromSupabaseMessage(message) {
+        return { id: message.id, text: message.text, createdAt: message.created_at };
+      }
+
       async function loadMessages() {
         try {
+          if (supabaseClient) {
+            const { data, error } = await supabaseClient
+              .from("messages")
+              .select("id, text, created_at")
+              .order("created_at", { ascending: false })
+              .limit(500);
+            if (error) throw error;
+            addMessages(data.reverse().map(fromSupabaseMessage));
+            return;
+          }
+
           const response = await fetch("/api/messages");
           if (!response.ok) throw new Error("Couldn’t load messages.");
           addMessages(await response.json());
         } catch (error) {
-          messageStatus.textContent = "Messages couldn’t load. Please refresh to try again.";
+          console.error("Couldn’t load messages:", error);
+          messageStatus.textContent = "Messages couldn’t load. Check the guestbook setup and try again.";
         }
       }
 
-      const messageStream = new EventSource("/api/messages/events");
-      messageStream.addEventListener("message", (event) => {
-        try {
-          addMessages([JSON.parse(event.data)]);
-        } catch (error) {
-          messageStatus.textContent = "A new message couldn’t be displayed. Please refresh.";
-        }
-      });
+      if (supabaseClient) {
+        supabaseClient
+          .channel("public-messages")
+          .on("postgres_changes", {
+            event: "INSERT",
+            schema: "public",
+            table: "messages"
+          }, ({ new: message }) => addMessages([fromSupabaseMessage(message)]))
+          .subscribe((status) => {
+            if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+              messageStatus.textContent = "Live updates aren’t connected. Refresh to try again.";
+            }
+          });
+      } else if (isLocalPrototype) {
+        const messageStream = new EventSource("/api/messages/events");
+        messageStream.addEventListener("message", (event) => {
+          try {
+            addMessages([JSON.parse(event.data)]);
+          } catch (error) {
+            console.error("Couldn’t display a new message:", error);
+            messageStatus.textContent = "A new message couldn’t be displayed. Please refresh.";
+          }
+        });
+      } else {
+        messageStatus.textContent = hasPartialSupabaseConfig || hasSupabaseConfig
+          ? "Guestbook setup is incomplete. Check the Supabase project URL and public key."
+          : "Guestbook isn’t connected yet. Add the Supabase project URL and public key.";
+        messageText.disabled = true;
+        messageSubmit.disabled = true;
+      }
 
       messageForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         messageSubmit.disabled = true;
         messageStatus.textContent = "sending…";
         try {
-          const response = await fetch("/api/messages", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              text: messageText.value
-            })
-          });
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error || "Couldn’t send your message.");
+          if (supabaseClient) {
+            const { data, error } = await supabaseClient
+              .from("messages")
+              .insert({ text: messageText.value })
+              .select("id, text, created_at")
+              .single();
+            if (error) throw error;
+            addMessages([fromSupabaseMessage(data)]);
+          } else {
+            const response = await fetch("/api/messages", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: messageText.value })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || "Couldn’t send your message.");
+            addMessages([result.message]);
+          }
           messageForm.reset();
           messageStatus.textContent = "message sent <3";
         } catch (error) {
+          console.error("Couldn’t send message:", error);
           messageStatus.textContent = error.message || "Couldn’t send your message. Please try again.";
         } finally {
           messageSubmit.disabled = false;
         }
       });
 
-      loadMessages();
+      if (supabaseClient || isLocalPrototype) loadMessages();
 
       async function playVideo() {
         videoStatus.hidden = true;
