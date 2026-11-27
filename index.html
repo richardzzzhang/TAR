@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>CLUB TAR</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Helvetica, Arial, sans-serif;
+      color: #000;
+      background: #fff;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .screen {
+      width: 100%;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 32px 24px;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    #intro-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .intro-content {
+      width: 100%;
+      max-width: 700px;
+      margin: auto;
+    }
+
+    #intro-copy {
+      margin: 0;
+      font-size: 1.7rem;
+      font-size: clamp(1.7rem, 5vw, 3rem);
+      font-weight: 400;
+      line-height: 1.35;
+      overflow-wrap: break-word;
+    }
+
+    #intro-copy.title-card {
+      font-weight: 400;
+      letter-spacing: .01em;
+    }
+
+    #intro-copy.club-title-card {
+      font-size: 2.6rem;
+      font-size: clamp(2.6rem, 12vw, 6.5rem);
+      font-weight: 700;
+      letter-spacing: normal;
+      font-style: normal;
+    }
+
+    .text-button {
+      margin-top: 26px;
+      padding: 2px 0;
+      border: 0;
+      color: #000;
+      background: transparent;
+      font-size: .95rem;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: .18em;
+    }
+
+    .text-button:focus-visible {
+      outline: 2px solid #000;
+      outline-offset: 4px;
+    }
+
+    .text-button:hover {
+      text-decoration-thickness: 2px;
+    }
+
+    #play-button {
+      margin-top: 0;
+      text-decoration: none;
+    }
+
+    #details-button {
+      margin-top: 0;
+    }
+
+    #video-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .video-frame {
+      display: flex;
+      width: 100%;
+      min-height: 0;
+      flex: 0 1 auto;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #invite-video {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-width: min(100%, 1200px);
+      max-height: calc(100vh - 150px);
+      max-height: calc(100dvh - 150px);
+      object-fit: contain;
+      background: #fff;
+    }
+
+    .video-controls {
+      display: flex;
+      min-height: 34px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .video-status {
+      max-width: 34ch;
+      margin: 0;
+      font-size: .85rem;
+      line-height: 1.4;
+      text-align: center;
+    }
+
+    #details-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .details-content {
+      width: 100%;
+      max-width: 620px;
+      margin: auto;
+      font-size: 1rem;
+      font-size: clamp(1rem, 2.6vw, 1.2rem);
+      line-height: 1.65;
+    }
+
+    .details-title {
+      margin: 0 0 32px;
+      font-size: 1.6em;
+      font-weight: 700;
+      letter-spacing: normal;
+      font-style: normal;
+    }
+
+    .details-content p {
+      margin: 0 0 24px;
+    }
+
+    .details-content .closing {
+      margin-bottom: 0;
+    }
+
+    @media (max-width: 480px) {
+      .screen {
+        padding: 24px 20px;
+      }
+
+      #invite-video {
+        max-height: calc(100vh - 136px);
+        max-height: calc(100dvh - 136px);
+      }
+
+      .details-title {
+        margin-bottom: 26px;
+      }
+
+      .details-content p {
+        margin-bottom: 20px;
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <main>
+    <section id="intro-screen" class="screen" aria-label="Invitation">
+      <div class="intro-content">
+        <p id="intro-copy" aria-live="polite">click</p>
+      </div>
+    </section>
+
+    <section id="video-screen" class="screen" aria-label="Party invitation video" hidden>
+      <div class="video-frame">
+        <video id="invite-video" playsinline webkit-playsinline preload="auto">
+          <source src="./invite.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="video-controls">
+        <button id="play-button" class="text-button" type="button" aria-label="Play video">play</button>
+        <button id="details-button" class="text-button" type="button">see deets &lt;3</button>
+        <p id="video-status" class="video-status" role="status" hidden></p>
+        <button id="retry-button" class="text-button" type="button" hidden>try again</button>
+      </div>
+    </section>
+
+    <section id="details-screen" class="screen" aria-label="Party details" hidden>
+      <div class="details-content">
+        <h1 class="details-title">CLUB TAR</h1>
+        <p>friday, december 4th at 10 pm<br>greg a, first floor</p>
+        <p class="closing">details might change, so keep an eye on your inbox.<br>see you there &lt;3</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const introScreen = document.querySelector("#intro-screen");
+      const introCopy = document.querySelector("#intro-copy");
+      const videoScreen = document.querySelector("#video-screen");
+      const video = document.querySelector("#invite-video");
+      const playButton = document.querySelector("#play-button");
+      const videoStatus = document.querySelector("#video-status");
+      const retryButton = document.querySelector("#retry-button");
+      const detailsButton = document.querySelector("#details-button");
+      const detailsScreen = document.querySelector("#details-screen");
+
+      const steps = [
+        { text: "keep clicking" },
+        { text: "hi" },
+        { text: ", this is", append: true },
+        { text: " talan, aditi and richard.", append: true },
+        { text: "we’re turning 21.", titleCard: true },
+        { text: "so we’re throwing a party.", titleCard: true },
+        { text: "CLUB TAR", titleCard: true, clubTitle: true },
+        { text: "you’re invited <3", titleCard: true },
+        { text: "we made something fun for you", titleCard: true },
+        { text: "please watch til the end...", titleCard: true },
+        { text: "click once more to watch", titleCard: true }
+      ];
+      let step = 0;
+
+      function advanceIntro() {
+        if (step >= steps.length) return;
+
+        const next = steps[step];
+        if (next.append) {
+          introCopy.textContent += next.text;
+        } else {
+          introCopy.textContent = next.text;
+        }
+
+        introCopy.classList.toggle("title-card", Boolean(next.titleCard));
+        introCopy.classList.toggle("club-title-card", Boolean(next.clubTitle));
+        step += 1;
+      }
+
+      function setScreen(activeScreen) {
+        for (const screen of [introScreen, videoScreen, detailsScreen]) {
+          screen.hidden = screen !== activeScreen;
+        }
+      }
+
+      function showVideoError(message) {
+        videoStatus.textContent = message;
+        videoStatus.hidden = false;
+        retryButton.hidden = false;
+      }
+
+      async function playVideo() {
+        videoStatus.hidden = true;
+        retryButton.hidden = true;
+        try {
+          await video.play();
+        } catch (error) {
+          playButton.textContent = "play";
+          playButton.setAttribute("aria-label", "Play video");
+          showVideoError("Video couldn’t start. Press play to try again.");
+        }
+      }
+
+      function startVideo() {
+        if (!videoScreen.hidden) return;
+        setScreen(videoScreen);
+        video.controls = false;
+        playVideo();
+      }
+
+      function retryVideo() {
+        videoStatus.hidden = true;
+        retryButton.hidden = true;
+        video.load();
+        playVideo();
+      }
+
+      introScreen.addEventListener("click", (event) => {
+        if (step < steps.length) {
+          advanceIntro();
+        } else {
+          startVideo();
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (introScreen.hidden || (event.key !== "Enter" && event.key !== " ")) return;
+        event.preventDefault();
+        if (step < steps.length) {
+          advanceIntro();
+        } else {
+          startVideo();
+        }
+      });
+
+      playButton.addEventListener("click", async () => {
+        if (video.paused || video.ended) {
+          if (video.ended) video.currentTime = 0;
+          await playVideo();
+        } else {
+          video.pause();
+        }
+      });
+
+      retryButton.addEventListener("click", retryVideo);
+
+      video.addEventListener("play", () => {
+        playButton.textContent = "pause";
+        playButton.setAttribute("aria-label", "Pause video");
+      });
+
+      video.addEventListener("pause", () => {
+        if (!video.ended) {
+          playButton.textContent = "play";
+          playButton.setAttribute("aria-label", "Play video");
+        }
+      });
+
+      video.addEventListener("error", () => {
+        if (videoScreen.hidden) return;
+        showVideoError("Sorry, this video couldn’t be played.");
+      });
+
+      video.addEventListener("ended", () => {
+        playButton.textContent = "play";
+        playButton.setAttribute("aria-label", "Play video");
+        videoStatus.hidden = true;
+        retryButton.hidden = true;
+      });
+
+      detailsButton.addEventListener("click", () => {
+        if (!video.paused) video.pause();
+        setScreen(detailsScreen);
+      });
+    })();
+  </script>
+</body>
+</html>
