@@ -192,6 +192,87 @@
       margin-bottom: 0;
     }
 
+    .message-board {
+      width: min(100%, 360px);
+      margin: 24px auto 0;
+      text-align: left;
+    }
+
+    .message-board h2 {
+      margin: 0 0 6px;
+      font-size: .8em;
+      font-weight: 400;
+      text-align: center;
+    }
+
+    #message-list {
+      max-height: 72px;
+      overflow-y: auto;
+      border-top: 1px solid #eee;
+      border-bottom: 1px solid #eee;
+      overscroll-behavior: contain;
+    }
+
+    .guest-message {
+      padding: 6px 0;
+      overflow-wrap: anywhere;
+    }
+
+    .guest-message + .guest-message {
+      border-top: 1px solid #eee;
+    }
+
+    .guest-message p {
+      margin: 0 !important;
+      white-space: pre-wrap;
+    }
+
+    #message-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    #message-form textarea {
+      width: 100%;
+      min-height: 40px;
+      padding: 6px 8px;
+      border: 1px solid #ddd;
+      border-radius: 0;
+      color: #000;
+      background: #fff;
+      font: inherit;
+      font-size: .8em;
+      resize: vertical;
+    }
+
+    #message-form textarea:focus-visible {
+      outline: 2px solid #000;
+      outline-offset: 2px;
+    }
+
+    .message-form-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: max-content;
+    }
+
+    #message-status {
+      margin: 0;
+      font-size: .65em;
+      text-align: left;
+    }
+
+    #message-submit {
+      margin: 0;
+      font-size: .75em;
+      white-space: nowrap;
+    }
+
     @media (max-width: 480px) {
       .screen {
         padding: 24px 20px;
@@ -209,6 +290,7 @@
       .details-content p {
         margin-bottom: 20px;
       }
+
     }
 
   </style>
@@ -240,6 +322,17 @@
         <h1 class="details-title">CLUB TAR</h1>
         <p>friday, december 4th at 10 pm<br>greg a, first floor</p>
         <p class="closing">details might change, so keep an eye on your inbox.<br>see you there &lt;3</p>
+        <section class="message-board" aria-labelledby="message-board-title">
+          <h2 id="message-board-title">leave a message</h2>
+          <div id="message-list" role="log" aria-live="polite" aria-relevant="additions"></div>
+          <form id="message-form">
+            <textarea id="message-text" name="text" maxlength="500" required aria-label="Your message" placeholder="type something..."></textarea>
+            <div class="message-form-footer">
+              <p id="message-status" role="status" aria-live="polite"></p>
+              <button id="message-submit" class="text-button" type="submit">send</button>
+            </div>
+          </form>
+        </section>
       </div>
     </section>
   </main>
@@ -255,6 +348,12 @@
       const retryButton = document.querySelector("#retry-button");
       const detailsButton = document.querySelector("#details-button");
       const detailsScreen = document.querySelector("#details-screen");
+      const messageList = document.querySelector("#message-list");
+      const messageForm = document.querySelector("#message-form");
+      const messageText = document.querySelector("#message-text");
+      const messageStatus = document.querySelector("#message-status");
+      const messageSubmit = document.querySelector("#message-submit");
+      const messagesById = new Map();
 
       const steps = [
         { text: "keep clicking" },
@@ -297,6 +396,73 @@
         videoStatus.hidden = false;
         retryButton.hidden = false;
       }
+
+      function addMessages(messages) {
+        const wasAtBottom = messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight < 24;
+        for (const message of messages) {
+          messagesById.set(message.id, message);
+        }
+
+        const sortedMessages = [...messagesById.values()]
+          .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        messageList.replaceChildren();
+
+        for (const message of sortedMessages) {
+          const item = document.createElement("article");
+          item.className = "guest-message";
+
+          const text = document.createElement("p");
+          text.textContent = message.text;
+          item.append(text);
+          messageList.append(item);
+        }
+
+        if (wasAtBottom) messageList.scrollTop = messageList.scrollHeight;
+      }
+
+      async function loadMessages() {
+        try {
+          const response = await fetch("/api/messages");
+          if (!response.ok) throw new Error("Couldn’t load messages.");
+          addMessages(await response.json());
+        } catch (error) {
+          messageStatus.textContent = "Messages couldn’t load. Please refresh to try again.";
+        }
+      }
+
+      const messageStream = new EventSource("/api/messages/events");
+      messageStream.addEventListener("message", (event) => {
+        try {
+          addMessages([JSON.parse(event.data)]);
+        } catch (error) {
+          messageStatus.textContent = "A new message couldn’t be displayed. Please refresh.";
+        }
+      });
+
+      messageForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        messageSubmit.disabled = true;
+        messageStatus.textContent = "sending…";
+        try {
+          const response = await fetch("/api/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              text: messageText.value
+            })
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || "Couldn’t send your message.");
+          messageForm.reset();
+          messageStatus.textContent = "message sent <3";
+        } catch (error) {
+          messageStatus.textContent = error.message || "Couldn’t send your message. Please try again.";
+        } finally {
+          messageSubmit.disabled = false;
+        }
+      });
+
+      loadMessages();
 
       async function playVideo() {
         videoStatus.hidden = true;
